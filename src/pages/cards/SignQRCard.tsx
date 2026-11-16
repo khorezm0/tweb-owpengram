@@ -1,4 +1,4 @@
-import {onCleanup, onMount} from 'solid-js';
+import {createSignal, onCleanup, onMount} from 'solid-js';
 
 import Button from '@components/buttonTsx';
 import LanguageChangeButton from '@components/languageChangeButton';
@@ -16,6 +16,7 @@ import {AuthAuthorization, AuthLoginToken} from '@layer';
 import {LangPackKey, i18n} from '@lib/langPack';
 import AccountController from '@lib/accounts/accountController';
 import rootScope from '@lib/rootScope';
+import {fetchLoginAppConfig} from '@lib/owpengram/emailSignupSetting';
 
 import AuthCard from '@/pages/AuthCard';
 import {CardSpec, useAuthFlow} from '@/pages/authFlow';
@@ -42,6 +43,10 @@ export default function SignQRCard(_props: {spec: Spec}) {
   let stickerHost: HTMLDivElement;
   let preloader: HTMLElement | undefined;
   let stopped = false;
+
+  // the other way in is by email on a server with email sign-up, so the button
+  // leading there says so
+  const [emailSignup, setEmailSignup] = createSignal(false);
 
   // Latest token we've drawn — kept so the theme_changed listener can repaint
   // synchronously without waiting for the next `iterate` cycle to come around.
@@ -194,6 +199,10 @@ export default function SignQRCard(_props: {spec: Spec}) {
   onMount(async() => {
     managers.appStateManager.pushToState('authState', {_: 'authStateSignQr'});
 
+    fetchLoginAppConfig(managers).then((appConfig) => {
+      if(!stopped && appConfig) setEmailSignup(!!appConfig.email_signup_enabled);
+    });
+
     preloader = putPreloader(stickerHost, true);
 
     const [{default: QRCodeStyling}] = await Promise.all([
@@ -240,8 +249,9 @@ export default function SignQRCard(_props: {spec: Spec}) {
           stopped = true;
           navigate({name: 'signIn'});
         }}
-        text="Login.QR.Cancel"
-      />
+      >
+        {i18n(emailSignup() ? 'Login.QR.CancelEmail' : 'Login.QR.Cancel')}
+      </Button>
       {accountNumber === 1 && <LanguageChangeButton />}
       <PasskeyLoginButton />
     </AuthCard>
