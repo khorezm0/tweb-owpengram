@@ -8,7 +8,17 @@
 import type {TrueDcId} from '@types';
 import {BASE_DC_ID} from '@lib/accounts/authKeyFingerprint';
 
-export const MAIN_DOMAINS = ['web.telegram.org', 'webk.telegram.org'];
+/** The domains of the official deployment - the one the Webogram api credentials below belong to */
+const OFFICIAL_MAIN_DOMAINS = ['web.telegram.org', 'webk.telegram.org'];
+
+/**
+ * The domains this deployment is served from: `.env`'s `VITE_MAIN_DOMAINS`
+ * (comma-separated) over the official ones as the default. Only gates the `t.me`
+ * auth sync (telegramMeWebManager): a self-hosted domain stays off `isMainDomain`
+ * below, so its own `VITE_API_ID`/`VITE_API_HASH` stay in use.
+ */
+const envMainDomains = import.meta.env.VITE_MAIN_DOMAINS?.split(',').map((domain) => domain.trim()).filter(Boolean);
+export const MAIN_DOMAINS = envMainDomains?.length ? envMainDomains : OFFICIAL_MAIN_DOMAINS;
 export const DEFAULT_BACKGROUND_SLUG = 'pattern';
 
 const threads = Math.min(4, navigator.hardwareConcurrency ?? 4);
@@ -25,7 +35,7 @@ const App = {
   langPackCode: 'en',
   domains: MAIN_DOMAINS,
   baseDcId: BASE_DC_ID as TrueDcId,
-  isMainDomain: MAIN_DOMAINS.includes(location.hostname),
+  isMainDomain: OFFICIAL_MAIN_DOMAINS.includes(location.hostname),
   suffix: 'K',
   threads,
   lottieWorkers: threads,

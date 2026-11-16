@@ -109,6 +109,16 @@ function isHTTPTransport(transport: MTTransport) {
   return !import.meta.env.VITE_MTPROTO_HAS_WS || transport instanceof HTTP;
 }
 
+/**
+ * The layer the client announces in `invokeWithLayer`: `.env`'s `VITE_API_LAYER`
+ * over the schema's own (`Schema.layer`, 233) as the default. A server that
+ * admits only the layers it has profiles for (owpengram: 225-232) refuses a
+ * layer it does not know on every call - announce one it takes. The wire bytes
+ * stay the schema's own: a layer our schema is a pure superset of (nothing
+ * changed, only added) serializes identically either way.
+ */
+const API_LAYER = +import.meta.env.VITE_API_LAYER || Schema.layer;
+
 // const TEST_RESEND_RPC: string = 'upload.file';
 const TEST_RESEND_RPC: string = undefined;
 let TESTING_RESENDING_RPC = !!TEST_RESEND_RPC;
@@ -424,7 +434,7 @@ export default class MTPNetworker {
       log('adding invokeWithLayer');
 
       serializer.storeMethod('invokeWithLayer', {
-        layer: Schema.layer,
+        layer: API_LAYER,
         query: (serializer: TLSerialization) => {
           const initConnectionParams = this.getInitConnectionParams();
           serializer.storeMethod('initConnection', {

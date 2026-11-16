@@ -887,6 +887,23 @@ describe('GroupCallInstance runtime media transactions', () => {
     expect(instance.participant.pFlags.muted).toBe(true);
   });
 
+  it('treats GROUPCALL_NOT_MODIFIED as acceptance and opens the microphone', async() => {
+    const {instance, managers, main} = makeReadyInstance();
+    instances.push(instance);
+    const track = new FakeTrack('audio');
+    track.enabled = false;
+    main.streamManager.inputStream.getAudioTracks = () => [track as unknown as MediaStreamTrack];
+    // The server row already says unmuted; the local copy is stale-muted.
+    managers.appGroupCallsManager.editParticipant.mockRejectedValue({type: 'GROUPCALL_NOT_MODIFIED'} as any);
+
+    await expect(instance.changeUserMuted(0 as PeerId, false)).resolves.toBeUndefined();
+
+    expect(track.enabled).toBe(true);
+    expect(instance.participant.pFlags.muted).toBeUndefined();
+    // No rollback: the stale muted row must not go back into the cache.
+    expect(managers.appGroupCallsManager.saveApiParticipant).not.toHaveBeenCalled();
+  });
+
   it('mutes capture before the participant RPC and keeps it fail-closed on rejection', async() => {
     const {instance, managers, main} = makeReadyInstance();
     instances.push(instance);

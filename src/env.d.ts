@@ -16,6 +16,14 @@ interface ImportMetaEnv {
   readonly VITE_MTPROTO_HAS_HTTP: string;
   readonly VITE_MTPROTO_HAS_WS: string;
   readonly VITE_SAFARI_PROXY_WEBSOCKET: string;
+  // self-hosted deployments - see `.env` and `.env.local.example`. Optional: each
+  // has the official value as its default in code when absent or empty
+  readonly VITE_MAIN_DOMAINS?: string;
+  readonly VITE_TME_HOSTS?: string;
+  readonly VITE_MTPROTO_WS_URL?: string;
+  readonly VITE_MTPROTO_HTTP_URL?: string;
+  readonly VITE_MTPROTO_RSA_KEYS?: string;
+  readonly VITE_API_LAYER?: string;
   // injected via `define` by vite.preview.config.ts; absent in every other build
   readonly VITE_PREVIEW?: boolean;
   // injected via `define` by vite.preview.config.ts when start-preview.sh is

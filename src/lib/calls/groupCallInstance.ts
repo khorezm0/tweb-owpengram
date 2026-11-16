@@ -2443,40 +2443,50 @@ export default class GroupCallInstance extends CallInstanceBase<{
 
     try {
       await this.editParticipant(participant, {muted}, false);
-      // When no self row landed during the RPC, the accepted state lives on
-      // `participant` (editParticipant already applied the accepted pFlags to
-      // it) — trust it. When a row DID land, the newest row wins so a genuinely
-      // newer admin mute stays fail-closed; if that row is a stale "muted" echo
-      // computed before our acceptance, the armed intent below lets the next
-      // consistent self row open capture instead of losing the unmute forever.
-      const currentParticipant = this.selfParticipantRevision === participantRevision ?
-        participant :
-        (this.participant || participant);
-      if(!muted) {
-        if(currentParticipant.pFlags.can_self_unmute && !currentParticipant.pFlags.muted) {
-          this.pendingUnmuteIntentAt = undefined;
-          this.setMuted(false);
-          this.dispatchEvent('state', this.state);
-        } else if(currentParticipant.pFlags.can_self_unmute) {
-          this.pendingUnmuteIntentAt = performance.now();
-        }
-      }
     } catch(err) {
-      // A failed microphone mutation must remain locally fail-closed. This
-      // preserves an explicit mute request and prevents a rejected unmute or a
-      // late thin participant row from opening current/pending capture tracks.
-      this.pendingUnmuteIntentAt = undefined;
-      this.setMuted(true);
-      if(this.selfParticipantRevision === participantRevision && this.participant === participant) {
-        participant.pFlags = {...previousPFlags};
-        try {
-          await this.managers.appGroupCallsManager.saveApiParticipant(this.id, participant);
-        } catch(rollbackError) {
-          this.log.error('mute participant rollback failed', rollbackError);
+      if((err as ApiError)?.type !== 'GROUPCALL_NOT_MODIFIED') {
+        // A failed microphone mutation must remain locally fail-closed. This
+        // preserves an explicit mute request and prevents a rejected unmute or a
+        // late thin participant row from opening current/pending capture tracks.
+        this.pendingUnmuteIntentAt = undefined;
+        this.setMuted(true);
+        if(this.selfParticipantRevision === participantRevision && this.participant === participant) {
+          participant.pFlags = {...previousPFlags};
+          try {
+            await this.managers.appGroupCallsManager.saveApiParticipant(this.id, participant);
+          } catch(rollbackError) {
+            this.log.error('mute participant rollback failed', rollbackError);
+          }
         }
+        this.dispatchEvent('state', this.state);
+        throw err;
       }
-      this.dispatchEvent('state', this.state);
-      throw err;
+
+      // The server's row already equalled the edit — acceptance of the same
+      // shape, not a failure. editParticipant has applied the requested
+      // pFlags to the participant copy; keep them. The rollback above would
+      // restore a stale row the server never held, and no server push ever
+      // corrects it (nothing changed server-side), so every later click
+      // would repeat the rejection and the microphone could never open.
+    }
+
+    // When no self row landed during the RPC, the accepted state lives on
+    // `participant` (editParticipant already applied the accepted pFlags to
+    // it) — trust it. When a row DID land, the newest row wins so a genuinely
+    // newer admin mute stays fail-closed; if that row is a stale "muted" echo
+    // computed before our acceptance, the armed intent below lets the next
+    // consistent self row open capture instead of losing the unmute forever.
+    const currentParticipant = this.selfParticipantRevision === participantRevision ?
+      participant :
+      (this.participant || participant);
+    if(!muted) {
+      if(currentParticipant.pFlags.can_self_unmute && !currentParticipant.pFlags.muted) {
+        this.pendingUnmuteIntentAt = undefined;
+        this.setMuted(false);
+        this.dispatchEvent('state', this.state);
+      } else if(currentParticipant.pFlags.can_self_unmute) {
+        this.pendingUnmuteIntentAt = performance.now();
+      }
     }
   }
 

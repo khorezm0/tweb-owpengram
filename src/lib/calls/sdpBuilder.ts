@@ -190,9 +190,12 @@ export class SDPBuilder extends StringFromLineBuilder {
       `a=rtcp:${port} IN IP4 0.0.0.0`
     );
 
-    if(transport['rtcp-mux']) {
-      add('a=rtcp-mux');
-    }
+    // addHeader always emits a=group:BUNDLE, and every bundled m-line needs
+    // rtcp-mux — Chrome rejects the whole description without it. The SFU
+    // muxes RTP and RTCP anyway; its transport table may just omit the flag
+    // (the conference path's answer does), so emit it unconditionally like
+    // the P2P path (addP2p) does.
+    add('a=rtcp-mux');
 
     add(`a=mid:${mid}`);
     /* if(type === 'video') {

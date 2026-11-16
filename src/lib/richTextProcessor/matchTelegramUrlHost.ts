@@ -1,7 +1,17 @@
 import {T_ME_PREFIXES} from '@appManagers/constants';
 
-const TELEGRAM_LINK_HOSTS = ['t.me', 'telegram.me'];
 export const TELESCOPE_LINK_HOST = 'telesco.pe';
+
+/**
+ * The hosts a link is an internal one on, t.me-style: `.env`'s `VITE_TME_HOSTS`
+ * (comma-separated) over the official ones as the default - a self-hosted
+ * deployment names its own link host there. Read per call, not at the module's
+ * top level: a test pins it with `vi.stubEnv` after the import.
+ */
+function getTelegramLinkHosts(): string[] {
+  const envHosts = import.meta.env.VITE_TME_HOSTS?.split(',').map((host) => host.trim().toLowerCase()).filter(Boolean);
+  return envHosts?.length ? envHosts : ['t.me', 'telegram.me'];
+}
 
 /**
  * Tells whether a url sits on one of `hosts` (or a subdomain of one).
@@ -39,7 +49,7 @@ export function matchUrlHost(url: URL, hosts: string[]) {
  * tests `match?.prefix` instead of `match` treats every non-subdomain link as external.
  */
 export default function matchTelegramUrlHost(url: URL): {prefix?: string} | undefined {
-  const match = matchUrlHost(url, TELEGRAM_LINK_HOSTS);
+  const match = matchUrlHost(url, getTelegramLinkHosts());
   if(!match) {
     return;
   }

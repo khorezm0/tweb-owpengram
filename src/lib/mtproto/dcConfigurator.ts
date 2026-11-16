@@ -33,6 +33,15 @@ const PREMIUM_SUFFIX = '_premium';
 const RETRY_TIMEOUT_CLIENT = 3000;
 const RETRY_TIMEOUT_DOWNLOAD = 3000;
 
+/**
+ * A self-hosted server's endpoints: `.env`'s `VITE_MTPROTO_WS_URL` /
+ * `VITE_MTPROTO_HTTP_URL`, a full URL each, one for every DC and connection type
+ * (the obfuscated transport's header carries the dcId). Unset: the official
+ * per-DC endpoints below, built as before.
+ */
+const CUSTOM_WS_URL = import.meta.env.VITE_MTPROTO_WS_URL;
+const CUSTOM_HTTP_URL = import.meta.env.VITE_MTPROTO_HTTP_URL;
+
 export function getTelegramConnectionSuffix(connectionType: ConnectionType) {
   return connectionType === 'client' ? '' : '-1';
 }
@@ -55,6 +64,10 @@ export function constructTelegramWebSocketUrl(_dcId: DcId, connectionType: Conne
   }
 
   const dcId = assertValidDcId(_dcId);
+  if(CUSTOM_WS_URL) {
+    return CUSTOM_WS_URL;
+  }
+
   const suffix = getTelegramConnectionSuffix(connectionType);
   const path = connectionType !== 'client' ? 'apiws' + TEST_SUFFIX + (premium ? PREMIUM_SUFFIX : '') : ('apiws' + TEST_SUFFIX);
   const chosenServer = `wss://${App.suffix.toLowerCase()}ws${dcId}${suffix}.web.telegram.org/${path}`;
@@ -107,7 +120,9 @@ export class DcConfigurator {
     }
 
     let chosenServer: string;
-    if(Modes.ssl || !Modes.http) {
+    if(CUSTOM_HTTP_URL) {
+      chosenServer = CUSTOM_HTTP_URL;
+    } else if(Modes.ssl || !Modes.http) {
       const suffix = getTelegramConnectionSuffix(connectionType);
       const subdomain = this.sslSubdomains[dcId - 1] + suffix;
       const path = Modes.test ? 'apiw_test1' : 'apiw1';

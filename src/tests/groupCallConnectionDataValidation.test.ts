@@ -17,9 +17,32 @@ vi.mock('@lib/calls/helpers/filterServerCodecs', () => ({default: joinMocks.filt
 vi.mock('@lib/calls/helpers/fixLocalOffer', () => ({default: joinMocks.fixLocalOffer}));
 
 import GroupCallConnectionInstance from '@lib/calls/groupCallConnectionInstance';
+import {parseSdp} from '@lib/calls/sdp/utils';
 import {isSdpSafeConnectionData} from '@lib/calls/helpers/sdpSafety';
 import type {UpdateGroupCallConnectionData} from '@lib/calls/types';
 import mockConnectionData from '@/mock/webrtc/data';
+
+// A real parsed offer — negotiateInternal (and the codec backfill it calls)
+// reads the SDPMediaSection API off these sections.
+function localOfferSdp(mids: number) {
+  const lines = [
+    'v=0',
+    'o=- 1234 2 IN IP4 0.0.0.0',
+    's=-',
+    't=0 0',
+    `a=group:BUNDLE ${Array.from({length: mids}, (_, i) => '' + i).join(' ')}`
+  ];
+  for(let i = 0; i < mids; ++i) {
+    lines.push(
+      'm=audio 9 UDP/TLS/RTP/SAVPF 111',
+      'c=IN IP4 0.0.0.0',
+      `a=mid:${i}`,
+      'a=sendonly',
+      'a=rtpmap:111 opus/48000/2'
+    );
+  }
+  return lines.join('\r\n');
+}
 
 function answer(): UpdateGroupCallConnectionData {
   return JSON.parse(JSON.stringify(mockConnectionData));
@@ -64,7 +87,7 @@ function makeInstance(rawAnswer: string) {
   });
   const description = {
     entries: [] as unknown[],
-    getEntryByMid: vi.fn(() => ({source: undefined})),
+    getEntryByMid: vi.fn(() => ({type: 'audio' as const, direction: 'sendonly' as const, source: undefined, shouldBeSkipped: (): boolean => false})),
     setData: vi.fn(),
     generateSdp: vi.fn(() => 'v=0'),
     deleteEntry: vi.fn()
@@ -85,7 +108,7 @@ describe('GroupCallConnectionInstance connection data validation', () => {
     joinMocks.filterServerCodecs.mockReset();
     joinMocks.fixLocalOffer.mockReset().mockImplementation(({offer}) => ({
       offer,
-      sdp: {media: [{mediaType: 'audio', isSending: true, mid: '0'}], bundle: []}
+      sdp: parseSdp(localOfferSdp(1))
     }));
   });
 
@@ -135,7 +158,7 @@ describe('GroupCallConnectionInstance connection data validation', () => {
     description.getEntryByMid = vi.fn((mid: string) => mid === '1' ? leftEntry : keptEntry) as any;
     joinMocks.fixLocalOffer.mockImplementation(({offer}) => ({
       offer,
-      sdp: {media: [{mediaType: 'audio', isSending: true, mid: '0'}, {mediaType: 'audio', isSending: false, mid: '1'}], bundle: ['0', '1']}
+      sdp: parseSdp(localOfferSdp(2))
     }));
     const releaseRemovedEntries = vi.fn();
     (instance as any).groupCall.releaseRemovedEntries = releaseRemovedEntries;

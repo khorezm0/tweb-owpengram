@@ -4,11 +4,18 @@
  * nothing ended the host, so an attacker's host collected the internal `im`/`call` handlers.
  */
 
-import {afterEach, describe, expect, test, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
 import matchTelegramUrlHost, {matchUrlHost, TELESCOPE_LINK_HOST} from '@lib/richTextProcessor/matchTelegramUrlHost';
 import addAnchorListener from '@helpers/addAnchorListener';
 
+// a deployment's own `.env` must not decide what these tests see: the hosts are pinned
+// to the defaults (an empty `VITE_TME_HOSTS` falls back to them - see getTelegramLinkHosts)
+beforeEach(() => {
+  vi.stubEnv('VITE_TME_HOSTS', '');
+});
+
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
@@ -50,6 +57,14 @@ describe('matchTelegramUrlHost', () => {
     // a caller testing `match?.prefix` instead of `match` would read every plain `t.me/durov` as
     // an external link, so the plain host has to come back truthy with no prefix in it
     expect(matchTelegramUrlHost(new URL('https://t.me/durov'))).toBeTruthy();
+  });
+
+  test('reads `VITE_TME_HOSTS` in place of the default hosts', () => {
+    vi.stubEnv('VITE_TME_HOSTS', 'links.my.example');
+    expect(matchTelegramUrlHost(new URL('https://links.my.example/durov'))).toEqual({prefix: undefined});
+    expect(matchTelegramUrlHost(new URL('https://sub.links.my.example/durov'))).toEqual({prefix: 'sub'});
+    // the hosts it replaces are gone: t.me is some other site's link now
+    expect(matchTelegramUrlHost(new URL('https://t.me/durov'))).toBeUndefined();
   });
 });
 

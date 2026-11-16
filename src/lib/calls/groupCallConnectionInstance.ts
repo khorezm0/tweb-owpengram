@@ -4,6 +4,7 @@ import {GroupCallConnectionType, JoinGroupCallJsonPayload} from '@appManagers/ap
 import {AppManagers} from '@lib/managers';
 import CallConnectionInstanceBase, {CallConnectionInstanceOptions} from '@lib/calls/callConnectionInstanceBase';
 import GroupCallInstance from '@lib/calls/groupCallInstance';
+import backfillMissingCodecs from '@lib/calls/helpers/backfillMissingCodecs';
 import filterServerCodecs from '@lib/calls/helpers/filterServerCodecs';
 import fixLocalOffer from '@lib/calls/helpers/fixLocalOffer';
 import processMediaSection from '@lib/calls/helpers/processMediaSection';
@@ -585,6 +586,13 @@ export default class GroupCallConnectionInstance extends CallConnectionInstanceB
 
       return entry;
     });
+
+    // The server's answer may omit a codec table the m-lines of our own offer
+    // still carry (an answer without `audio`, or the presentation upgrade's
+    // by-design shape). Derive what is missing from the matching section of
+    // the offer we applied above, before the answer SDP below reads it — and
+    // before a presentation join copies `main.description.audio` over.
+    backfillMissingCodecs(description, localSdp);
 
     const answerDescription: RTCSessionDescriptionInit = {
       type: 'answer',

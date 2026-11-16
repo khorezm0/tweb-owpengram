@@ -12,6 +12,21 @@ import bytesFromHex from '@helpers/bytes/bytesFromHex';
 import bytesToHex from '@helpers/bytes/bytesToHex';
 import bigInt from 'big-integer';
 
+/**
+ * A self-hosted server's RSA public keys: `.env`'s `VITE_MTPROTO_RSA_KEYS`
+ * (comma-separated `modulus[:exponent]` hex) over the official ones as the
+ * default. The server names the key's fingerprint in its first answer
+ * (`resPQ`), and the client picks the key by it - a key the client does not
+ * know ends the auth with `[MT] No public key found`. Read per constructor, not
+ * at the module's top level, so a test can pin it with `vi.stubEnv`.
+ */
+function getEnvKeys(): RSAPublicKeyHex[] {
+  return import.meta.env.VITE_MTPROTO_RSA_KEYS?.split(',').map((key) => {
+    const [modulus, exponent] = key.trim().toLowerCase().split(':');
+    return {modulus, exponent: exponent || '010001'};
+  }).filter((key) => !!key.modulus) ?? [];
+}
+
 export type RSAPublicKeyHex = {
   modulus: string,
   exponent: string
@@ -80,7 +95,10 @@ export class RSAKeysManager {
   private preparePromise: Promise<void> = null;
 
   constructor() {
-    if(Modes.test) {
+    const envKeys = getEnvKeys();
+    if(envKeys.length) {
+      this.publisKeysHex = envKeys;
+    } else if(Modes.test) {
       this.publisKeysHex = this.testPublicKeysHex;
     }
   }
