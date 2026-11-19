@@ -1,7 +1,7 @@
 import forEachReverse from '@helpers/array/forEachReverse';
 import copy from '@helpers/object/copy';
 import {ConferenceEntry} from '@lib/calls/localConferenceDescription';
-import {parseSdp, addSimulcast} from '@lib/calls/sdp/utils';
+import {parseSdp, addSimulcast, alignOutgoingVideoSsrcs} from '@lib/calls/sdp/utils';
 import {generateMediaFirstLine, SDPBuilder} from '@lib/calls/sdpBuilder';
 import {UpdateGroupCallConnectionData} from '@lib/calls/types';
 import parseMediaSectionInfo from '@lib/calls/helpers/parseMediaSectionInfo';
@@ -17,6 +17,16 @@ export default function fixLocalOffer(options: {
   const {offer, data} = options;
   const sdp = parseSdp(offer.sdp);
   let hasMunged = false;
+
+  // Align the video m-line's ssrcs BEFORE addSimulcast runs: the trackless
+  // allocation writes the full layer table itself (addSimulcast then skips a
+  // section that already carries a SIM group). See alignOutgoingVideoSsrcs
+  // for the contract.
+  const {entries} = data as {entries?: ConferenceEntry[]};
+  const archivedVideo = entries?.find((entry) => {
+    return entry.type === 'video' && entry.direction === 'sendonly' && entry.source !== undefined;
+  });
+  hasMunged = alignOutgoingVideoSsrcs(sdp, archivedVideo, options.simulcastLayers ?? 3) || hasMunged;
 
   hasMunged = addSimulcast(sdp, options.simulcastLayers ?? 3) || hasMunged;
 

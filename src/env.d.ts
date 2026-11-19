@@ -18,6 +18,7 @@ interface ImportMetaEnv {
   readonly VITE_SAFARI_PROXY_WEBSOCKET: string;
   // self-hosted deployments - see `.env` and `.env.local.example`. Optional: each
   // has the official value as its default in code when absent or empty
+  readonly VITE_APP_TITLE?: string;
   readonly VITE_MAIN_DOMAINS?: string;
   readonly VITE_TME_HOSTS?: string;
   readonly VITE_MTPROTO_WS_URL?: string;

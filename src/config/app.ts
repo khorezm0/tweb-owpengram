@@ -19,6 +19,14 @@ const OFFICIAL_MAIN_DOMAINS = ['web.telegram.org', 'webk.telegram.org'];
  */
 const envMainDomains = import.meta.env.VITE_MAIN_DOMAINS?.split(',').map((domain) => domain.trim()).filter(Boolean);
 export const MAIN_DOMAINS = envMainDomains?.length ? envMainDomains : OFFICIAL_MAIN_DOMAINS;
+
+/**
+ * The app's name: the fallback push notification's title (push.ts) - the page's
+ * `<title>` takes the same `.env` var through vite.config's handlebars context.
+ * `.env`'s `VITE_APP_TITLE` over the default.
+ */
+export const APP_TITLE = import.meta.env.VITE_APP_TITLE || 'Telegram Web';
+
 export const DEFAULT_BACKGROUND_SLUG = 'pattern';
 
 const threads = Math.min(4, navigator.hardwareConcurrency ?? 4);

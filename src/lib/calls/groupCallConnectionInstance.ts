@@ -252,6 +252,54 @@ export default class GroupCallConnectionInstance extends CallConnectionInstanceB
         }
 
         await applyVideoSendParameters(sender, this.videoSendContent, this.senderVideoConstraint.value);
+
+        // TEMP DIAGNOSTIC (simulcast top-layer investigation): what Chrome
+        // actually holds after the munged offer was applied — how many
+        // encodings, their active/scale/bitrate config, and the capture size
+        // the ladder scales down from. Remove once the layer count is settled.
+        const parameters = sender.getParameters();
+        const track = sender.track;
+        const settings = track?.kind === 'video' ? track.getSettings?.() : undefined;
+        this.log('video send parameters applied', {
+          type: this.type,
+          content: this.videoSendContent,
+          constraint: this.senderVideoConstraint.value,
+          capture: settings && {w: settings.width, h: settings.height, fps: settings.frameRate},
+          encodings: (parameters.encodings || []).map((encoding) => ({
+            active: encoding.active,
+            maxBitrate: encoding.maxBitrate,
+            scale: encoding.scaleResolutionDownBy,
+            rid: encoding.rid
+          }))
+        });
+
+        // TEMP DIAGNOSTIC, part 2: what the encoder actually produces — one
+        // outbound-rtp report per ssrc, with byte/frame counts. Sampled once,
+        // 3 s after this apply, so a fresh negotiation still captures steady
+        // state. Remove together with the log above.
+        window.setTimeout(() => {
+          if(typeof sender.getStats !== 'function') return;
+          void sender.getStats().then((stats) => {
+            const outbound: {ssrc: number, bytes: number, frames: number, w: number, h: number}[] = [];
+            stats.forEach((report) => {
+              const r = report as RTCStats & {
+                type: string, kind?: string, ssrc?: number,
+                bytesSent?: number, framesEncoded?: number,
+                frameWidth?: number, frameHeight?: number
+              };
+              if(r.type === 'outbound-rtp' && r.kind === 'video') {
+                outbound.push({
+                  ssrc: r.ssrc,
+                  bytes: r.bytesSent,
+                  frames: r.framesEncoded,
+                  w: r.frameWidth,
+                  h: r.frameHeight
+                });
+              }
+            });
+            this.log('video send stats', {type: this.type, outbound});
+          }, (): undefined => undefined);
+        }, 3000);
       } catch(err) {
         this.log?.warn?.('setting video sender parameters failed', err);
       }

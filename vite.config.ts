@@ -1,5 +1,5 @@
 /// <reference types="vitest/config" />
-import {defineConfig, searchForWorkspaceRoot} from 'vite';
+import {defineConfig, loadEnv, searchForWorkspaceRoot} from 'vite';
 import solidPlugin from 'vite-plugin-solid';
 // @ts-ignore no type declarations
 import handlebars from 'vite-plugin-handlebars';
@@ -67,12 +67,18 @@ if(isDEV) {
   }
 }
 
+// The page's meta tags: `.env`'s `VITE_APP_TITLE` / `VITE_APP_URL` /
+// `VITE_APP_ORIGIN` over the official defaults. Read here, at config load -
+// index.html is templated before any app code runs (the app-side title default
+// lives in config/app.ts's APP_TITLE, over the same env var).
+const env = loadEnv(isDEV ? 'development' : 'production', rootDir);
+
 const handlebarsPlugin = handlebars({
   context: {
-    title: 'Telegram Web',
+    title: env.VITE_APP_TITLE || 'Telegram Web',
     description: 'Telegram is a cloud-based mobile and desktop messaging app with a focus on security and speed.',
-    url: 'https://web.telegram.org/k/',
-    origin: 'https://web.telegram.org/'
+    url: env.VITE_APP_URL || 'https://web.telegram.org/k/',
+    origin: env.VITE_APP_ORIGIN || 'https://web.telegram.org/'
   }
 });
 

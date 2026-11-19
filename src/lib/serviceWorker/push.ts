@@ -8,6 +8,7 @@
 import type {ActiveAccountNumber} from '@lib/accounts/types';
 import {Database} from '@config/databases';
 import {CommonDatabase, getCommonDatabaseState} from '@config/databases/state';
+import {APP_TITLE} from '@config/app';
 import {NOTIFICATION_BADGE_PATH, NOTIFICATION_ICON_PATH} from '@config/notifications';
 import {IS_FIREFOX} from '@environment/userAgent';
 import deepEqual from '@helpers/object/deepEqual';
@@ -197,7 +198,7 @@ async function handlePushNotificationObject(obj: PushNotificationObject) {
     }
 
     const tag = 'fix';
-    const notificationPromise = ctx.registration.showNotification('Telegram Web', {
+    const notificationPromise = ctx.registration.showNotification(APP_TITLE, {
       body: _lang.push_message_error,
       icon: NOTIFICATION_ICON_PATH,
       tag,
